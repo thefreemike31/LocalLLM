@@ -430,7 +430,11 @@ def main():
     print("-" * 50)
     print()
     
-    with socketserver.TCPServer((HOST, PORT), SearchRequestHandler) as httpd:
+    # Allow socket reuse to prevent "Address already in use" on restart
+    class ReusableTCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+    
+    with ReusableTCPServer((HOST, PORT), SearchRequestHandler) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
