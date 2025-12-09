@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1e1e1e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Local AI Chat</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed: ', err));
+            });
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="user-profile" id="userProfile">
+                    <div class="user-avatar" id="userAvatar">M</div>
+                    <span class="user-name" id="userName">User</span>
+                    <svg class="dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <polyline points="6,9 12,15 18,9" />
+                    </svg>
+                </div>
+                <button class="new-chat-btn" id="newChatBtn" title="New Chat">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="sidebar-content" id="sidebarContent">
+                <!-- Folders and chats will be rendered here -->
+                <div class="sidebar-section">
+                    <div class="section-header">
+                        <span>📁 Folders</span>
+                        <button class="add-folder-btn" id="addFolderBtn" title="Add Folder">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="folder-list" id="folderList"></div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="section-header">
+                        <span>💬 Chats</span>
+                    </div>
+                    <div class="chat-list" id="chatList"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sidebar Overlay (mobile) -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <header class="app-header">
+                <div class="header-left">
+                    <button class="icon-btn menu-btn" id="menuBtn" title="Menu">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12" />
+                            <line x1="3" y1="6" x2="21" y2="6" />
+                            <line x1="3" y1="18" x2="21" y2="18" />
+                        </svg>
+                    </button>
+                    <div class="logo">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+                        </svg>
+                    </div>
+                    <div class="header-title">
+                        <h1 id="chatTitle">Local AI</h1>
+                        <span class="model-name" id="currentModel">Connecting...</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" id="clearChat" title="Clear chat">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="3,6 5,6 21,6" />
+                            <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6" />
+                        </svg>
+                    </button>
+                    <button class="icon-btn" id="settingsBtn" title="Settings">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Messages -->
+            <main class="chat-container" id="chatContainer">
+                <div class="welcome-message" id="welcomeMessage">
+                    <div class="welcome-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+                        </svg>
+                    </div>
+                    <h2>Welcome to Local AI</h2>
+                    <p>Start a conversation or attach an image for vision analysis</p>
+                    <div class="capabilities">
+                        <span class="capability">💬 Chat</span>
+                        <span class="capability">📷 Vision</span>
+                        <span class="capability">🔒 Private</span>
+                    </div>
+                </div>
+                <div class="messages" id="messages"></div>
+            </main>
+
+            <!-- Image Preview -->
+            <div class="image-preview-container" id="imagePreviewContainer">
+                <div class="image-preview-wrapper">
+                    <img id="imagePreview" alt="Preview">
+                    <button class="remove-image-btn" id="removeImage">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <footer class="input-container">
+                <!-- Search Results Preview -->
+                <div class="search-preview" id="searchPreview">
+                    <div class="search-preview-header">
+                        <span>🔍 Web Search Results</span>
+                        <button class="search-preview-close" id="closeSearchPreview">×</button>
+                    </div>
+                    <div class="search-preview-content" id="searchPreviewContent"></div>
+                </div>
+                <div class="input-wrapper">
+                    <button class="attach-btn" id="attachBtn" title="Attach image">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21,15 16,10 5,21" />
+                        </svg>
+                    </button>
+                    <button class="search-btn" id="searchBtn" title="Toggle web search">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                    </button>
+                    <button class="mic-btn" id="micBtn" title="Voice Input">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                            <line x1="12" y1="19" x2="12" y2="23" />
+                            <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                    </button>
+                    <input type="file" id="imageInput" accept="image/*" hidden>
+                    <textarea id="messageInput" placeholder="Type a message..." rows="1" autocomplete="off"></textarea>
+                    <button class="send-btn" id="sendBtn" title="Send message">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13" />
+                            <polygon points="22,2 15,22 11,13 2,9 22,2" />
+                        </svg>
+                    </button>
+                </div>
+            </footer>
+        </div>
+
+        <!-- User Picker Modal -->
+        <div class="modal-overlay" id="userModal">
+            <div class="modal modal-sm">
+                <div class="modal-header">
+                    <h2>Switch User</h2>
+                    <button class="icon-btn close-modal" id="closeUserModal">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="user-list" id="userList"></div>
+                    <div class="new-user-form">
+                        <input type="text" id="newUserName" placeholder="Create new user..." maxlength="20">
+                        <button class="btn btn-primary" id="createUserBtn">Add</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Folder Modal -->
+        <div class="modal-overlay" id="folderModal">
+            <div class="modal modal-sm">
+                <div class="modal-header">
+                    <h2 id="folderModalTitle">New Folder</h2>
+                    <button class="icon-btn close-modal" id="closeFolderModal">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-group">
+                        <label for="folderName">Folder Name</label>
+                        <input type="text" id="folderName" placeholder="Enter folder name..." maxlength="30">
+                    </div>
+                    <div class="setting-group">
+                        <label>Color</label>
+                        <div class="color-picker" id="folderColorPicker">
+                            <button class="color-option" data-color="#6366f1" style="background:#6366f1"></button>
+                            <button class="color-option" data-color="#8b5cf6" style="background:#8b5cf6"></button>
+                            <button class="color-option" data-color="#ec4899" style="background:#ec4899"></button>
+                            <button class="color-option" data-color="#f43f5e" style="background:#f43f5e"></button>
+                            <button class="color-option" data-color="#f97316" style="background:#f97316"></button>
+                            <button class="color-option" data-color="#eab308" style="background:#eab308"></button>
+                            <button class="color-option" data-color="#22c55e" style="background:#22c55e"></button>
+                            <button class="color-option" data-color="#14b8a6" style="background:#14b8a6"></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="deleteFolderBtn" style="display:none">Delete</button>
+                    <button class="btn btn-primary" id="saveFolderBtn">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal-overlay" id="settingsModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="icon-btn close-modal" id="closeSettings">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-group">
+                        <label for="apiEndpoint">API Endpoint</label>
+                        <input type="text" id="apiEndpoint" placeholder="http://127.0.0.1:3115">
+                        <div class="endpoint-presets">
+                            <button type="button" class="btn-preset"
+                                onclick="setEndpoint('http://localhost:1234/v1')">LM Studio</button>
+                            <button type="button" class="btn-preset"
+                                onclick="setEndpoint('/api/ollama')">Ollama</button>
+                        </div>
+                        <span class="setting-hint">Click a preset or enter custom URL</span>
+                    </div>
+                    <div class="setting-group">
+                        <label for="modelSelect">Model</label>
+                        <select id="modelSelect">
+                            <option value="">Loading models...</option>
+                        </select>
+                        <span class="setting-hint">Select from available models</span>
+                    </div>
+                    <div class="setting-group">
+                        <label for="systemPrompt">System Prompt</label>
+                        <textarea id="systemPrompt" rows="3" placeholder="Optional system instructions..."></textarea>
+                        <span class="setting-hint">Custom instructions for the AI</span>
+                    </div>
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="streamingEnabled" checked>
+                            Enable streaming responses
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="refreshModels">Refresh Models</button>
+                    <button class="btn btn-primary" id="saveSettings">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Context Menu -->
+        <div class="context-menu" id="contextMenu">
+            <button class="context-item" data-action="rename">✏️ Rename</button>
+            <button class="context-item" data-action="move">📁 Move to Folder</button>
+            <button class="context-item" data-action="delete">🗑️ Delete</button>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script src="db.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
