@@ -139,7 +139,18 @@ const elements = {
     // Other
     clearChat: document.getElementById('clearChat'),
     contextMenu: document.getElementById('contextMenu'),
-    toast: document.getElementById('toast')
+    toast: document.getElementById('toast'),
+
+    // Model Manager
+    modelsBtn: document.getElementById('modelsBtn'),
+    modelManagerModal: document.getElementById('modelManagerModal'),
+    closeModelManager: document.getElementById('closeModelManager'),
+    modelNameInput: document.getElementById('modelNameInput'),
+    downloadModelBtn: document.getElementById('downloadModelBtn'),
+    modelProgress: document.getElementById('modelProgress'),
+    progressText: document.getElementById('progressText'),
+    progressFill: document.getElementById('progressFill'),
+    modelList: document.getElementById('modelList')
 };
 
 // ===== Voice Functions (Defined before init) =====
@@ -1301,6 +1312,14 @@ function bindEvents() {
     elements.saveSettings.addEventListener('click', saveSettings);
     elements.refreshModels.addEventListener('click', fetchModels);
 
+    // Model Manager
+    elements.modelsBtn.addEventListener('click', openModelManager);
+    elements.closeModelManager.addEventListener('click', closeAllModals);
+    elements.downloadModelBtn.addEventListener('click', pullModel);
+    elements.modelNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') pullModel();
+    });
+
     // Clear chat
     elements.clearChat.addEventListener('click', clearCurrentChat);
 
@@ -1427,6 +1446,142 @@ function escapeHtml(text) {
     if (!text) return '';
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+// ===== Model Manager =====
+async function openModelManager() {
+    openModal(elements.modelManagerModal);
+    await fetchInstalledModels();
+}
+
+async function fetchInstalledModels() {
+    try {
+        elements.modelList.innerHTML = '<div class="model-list-loading">Loading models...</div>';
+
+        const response = await fetch('/api/ollama/api/tags');
+        if (!response.ok) throw new Error('Failed to fetch models');
+
+        const data = await response.json();
+        renderModelList(data.models || []);
+    } catch (error) {
+        console.error('Error fetching models:', error);
+        elements.modelList.innerHTML = '<div class="model-list-loading">Failed to load models</div>';
+    }
+}
+
+function renderModelList(models) {
+    if (models.length === 0) {
+        elements.modelList.innerHTML = '<div class="model-list-loading">No models installed</div>';
+        return;
+    }
+
+    elements.modelList.innerHTML = models.map(model => {
+        const sizeGB = model.size ? (model.size / 1024 / 1024 / 1024).toFixed(1) + ' GB' : 'Unknown';
+        return `
+            <div class="model-item">
+                <div class="model-item-info">
+                    <div class="model-item-name">🤖 ${escapeHtml(model.name)}</div>
+                    <div class="model-item-details">${sizeGB}</div>
+                </div>
+                <div class="model-item-actions">
+                    <button class="model-delete-btn" onclick="deleteModel('${escapeHtml(model.name)}')" title="Delete model">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function pullModel() {
+    const modelName = elements.modelNameInput.value.trim();
+    if (!modelName) {
+        showToast('Please enter a model name', 'error');
+        return;
+    }
+
+    elements.modelProgress.style.display = 'block';
+    elements.progressText.textContent = 'Starting download...';
+    elements.progressFill.style.width = '0%';
+    elements.downloadModelBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/ollama/api/pull', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: modelName })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to start download');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const text = decoder.decode(value);
+            const lines = text.split('\n').filter(line => line.trim());
+
+            for (const line of lines) {
+                try {
+                    const data = JSON.parse(line);
+                    if (data.status) {
+                        elements.progressText.textContent = data.status;
+                    }
+                    if (data.completed && data.total) {
+                        const percent = Math.round((data.completed / data.total) * 100);
+                        elements.progressFill.style.width = percent + '%';
+                    }
+                    if (data.status === 'success') {
+                        showToast('Model downloaded successfully!', 'success');
+                    }
+                } catch (e) {
+                    // Ignore parse errors for partial lines
+                }
+            }
+        }
+
+        elements.modelNameInput.value = '';
+        await fetchInstalledModels();
+        await fetchModels(); // Refresh the settings dropdown too
+
+    } catch (error) {
+        console.error('Error pulling model:', error);
+        showToast('Failed to download model: ' + error.message, 'error');
+    } finally {
+        elements.modelProgress.style.display = 'none';
+        elements.downloadModelBtn.disabled = false;
+    }
+}
+
+async function deleteModel(modelName) {
+    if (!confirm(`Delete model "${modelName}"?`)) return;
+
+    try {
+        const response = await fetch('/api/ollama/api/delete', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: modelName })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete model');
+        }
+
+        showToast('Model deleted', 'success');
+        await fetchInstalledModels();
+        await fetchModels(); // Refresh the settings dropdown too
+
+    } catch (error) {
+        console.error('Error deleting model:', error);
+        showToast('Failed to delete model: ' + error.message, 'error');
+    }
+}
+
+window.deleteModel = deleteModel; // Make available for onclick
 
 // ===== Start App =====
 // ===== Start App =====

@@ -108,6 +108,15 @@
                             <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6" />
                         </svg>
                     </button>
+                    <button class="icon-btn" id="modelsBtn" title="Manage Models">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                            <line x1="12" y1="22.08" x2="12" y2="12" />
+                        </svg>
+                    </button>
                     <button class="icon-btn" id="settingsBtn" title="Settings">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -312,6 +321,50 @@
                 <div class="modal-footer">
                     <button class="btn btn-secondary" id="refreshModels">Refresh Models</button>
                     <button class="btn btn-primary" id="saveSettings">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Manager Modal -->
+        <div class="modal-overlay" id="modelManagerModal">
+            <div class="modal modal-lg">
+                <div class="modal-header">
+                    <h2>🔧 Model Manager</h2>
+                    <button class="icon-btn close-modal" id="closeModelManager">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Download Section -->
+                    <div class="setting-group">
+                        <label for="modelNameInput">Download New Model</label>
+                        <div class="model-download-row">
+                            <input type="text" id="modelNameInput" placeholder="e.g., llama3:8b, gemma2:9b">
+                            <button class="btn btn-primary" id="downloadModelBtn">Download</button>
+                        </div>
+                        <span class="setting-hint">Enter model name from <a href="https://ollama.ai/library"
+                                target="_blank">ollama.ai/library</a></span>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="model-progress" id="modelProgress" style="display: none;">
+                        <div class="progress-text" id="progressText">Downloading...</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+
+                    <!-- Installed Models -->
+                    <div class="setting-group">
+                        <label>Installed Models</label>
+                        <div class="model-list" id="modelList">
+                            <div class="model-list-loading">Loading models...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

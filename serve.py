@@ -148,7 +148,17 @@ class SearchRequestHandler(http.server.SimpleHTTPRequestHandler):
         elif self.path == '/api/upload':
             self.handle_upload()
         elif self.path.startswith('/api/ollama/'):
-            self.proxy_ollama('POST')
+            # Handle streaming for model pull
+            if '/api/pull' in self.path:
+                self.proxy_ollama_stream('POST')
+            else:
+                self.proxy_ollama('POST')
+        else:
+            self.send_error(404, 'Not Found')
+
+    def do_DELETE(self):
+        if self.path.startswith('/api/ollama/'):
+            self.proxy_ollama('DELETE')
         else:
             self.send_error(404, 'Not Found')
 
@@ -287,6 +297,59 @@ class SearchRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json({'error': 'Ollama timeout - model taking too long to respond'}, 504)
         except Exception as e:
             print(f"Ollama proxy error: {e}")
+            self.send_json({'error': str(e)}, 500)
+    
+    def proxy_ollama_stream(self, method):
+        """Proxy streaming requests to Ollama API (for model pull progress)."""
+        try:
+            target_url = f"{OLLAMA_BASE_URL}{self.path.replace('/api/ollama', '')}"
+            print(f"Streaming proxy to: {target_url}")
+            
+            # Read request body
+            body = None
+            if 'Content-Length' in self.headers:
+                content_length = int(self.headers['Content-Length'])
+                body = self.rfile.read(content_length)
+            
+            # Create request
+            req = urllib.request.Request(target_url, data=body, method=method)
+            req.add_header('Content-Type', 'application/json')
+            
+            try:
+                # Use longer timeout for model pulls (can take 30+ minutes)
+                with urllib.request.urlopen(req, timeout=3600) as response:
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/x-ndjson')
+                    self.send_header('Transfer-Encoding', 'chunked')
+                    self.end_headers()
+                    
+                    # Stream the response line by line
+                    for line in response:
+                        if line:
+                            # Send as chunked encoding
+                            chunk = line
+                            self.wfile.write(f"{len(chunk):x}\r\n".encode())
+                            self.wfile.write(chunk)
+                            self.wfile.write(b"\r\n")
+                            self.wfile.flush()
+                    
+                    # End chunked transfer
+                    self.wfile.write(b"0\r\n\r\n")
+                    self.wfile.flush()
+                    
+            except urllib.error.HTTPError as e:
+                print(f"Ollama stream HTTP error: {e.code}")
+                self.send_response(e.code)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                error_body = e.read() if e.fp else b'{}'
+                self.wfile.write(error_body)
+                
+        except urllib.error.URLError as e:
+            print(f"Ollama stream connection error: {e}")
+            self.send_json({'error': f'Cannot connect to Ollama: {e.reason}'}, 502)
+        except Exception as e:
+            print(f"Ollama stream error: {e}")
             self.send_json({'error': str(e)}, 500)
     
     def handle_search(self):
