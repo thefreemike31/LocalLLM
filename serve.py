@@ -21,7 +21,17 @@ import urllib.parse
 import urllib.error
 import ssl
 import re
+import os
+import io
 from html import unescape
+
+# Try imports for PDF processing
+try:
+    import pypdf
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+    print("Warning: pypdf not installed. PDF support disabled.")
 
 PORT = 8080
 HOST = '0.0.0.0'
@@ -135,11 +145,104 @@ class SearchRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/api/search':
             self.handle_search()
+        elif self.path == '/api/upload':
+            self.handle_upload()
         elif self.path.startswith('/api/ollama/'):
             self.proxy_ollama('POST')
         else:
             self.send_error(404, 'Not Found')
-    
+
+    def handle_upload(self):
+        """Handle file uploads and text extraction."""
+        try:
+            content_type = self.headers.get('Content-Type', '')
+            if not 'multipart/form-data' in content_type:
+                self.send_error(400, "Content-Type must be multipart/form-data")
+                return
+
+            boundary = content_type.split("boundary=")[1].encode()
+            content_length = int(self.headers['Content-Length'])
+            remaining_bytes = content_length
+            
+            # Read everything (simple for small files)
+            line = self.rfile.readline()
+            remaining_bytes -= len(line)
+            
+            if not boundary in line:
+                 self.send_error(400, "Content does not begin with boundary")
+                 return
+            
+            # Parse multipart manually-ish
+            # Find filename
+            filename = None
+            file_data = b""
+            
+            while remaining_bytes > 0:
+                line = self.rfile.readline()
+                remaining_bytes -= len(line)
+                if b'Content-Disposition' in line:
+                    if b'filename="' in line:
+                        filename = line.decode().split('filename="')[1].split('"')[0]
+                
+                if line == b'\r\n':
+                    # End of headers, start of data
+                    # Read until boundary
+                    pre_data = self.rfile.read(remaining_bytes)
+                    # The data ends with \r\n--boundary-- or \r\n--boundary
+                    # This is a naive parser for a single file upload
+                    file_data = pre_data.split(b'\r\n--' + boundary)[0]
+                    break
+
+            if not filename or not file_data:
+                self.send_error(400, "No file found")
+                return
+
+            # Save file
+            upload_dir = os.path.join(os.getcwd(), 'uploads')
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
+            
+            filepath = os.path.join(upload_dir, filename)
+            with open(filepath, 'wb') as f:
+                f.write(file_data)
+                
+            # Extract Text
+            extracted_text = ""
+            ext = os.path.splitext(filename)[1].lower()
+            
+            if ext == '.pdf':
+                if PDF_AVAILABLE:
+                    try:
+                        reader = pypdf.PdfReader(filepath)
+                        for page in reader.pages:
+                            extracted_text += page.extract_text() + "\n"
+                    except Exception as e:
+                        print(f"Error reading PDF: {e}")
+                        extracted_text = f"[Error reading PDF: {e}]"
+                else:
+                    extracted_text = "[PDF support missing. Install pypdf]"
+            else:
+                # Assume text/md
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        extracted_text = f.read()
+                except:
+                     extracted_text = "[Binary or unsupported text encoding]"
+
+            # Respond
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            response = json.dumps({
+                'filename': filename,
+                'text': extracted_text.strip()
+            }).encode()
+            self.wfile.write(response)
+
+        except Exception as e:
+            print(f"Upload error: {e}")
+            self.send_error(500, f"Upload failed: {str(e)}")
+
     def proxy_ollama(self, method):
         """Proxy requests to Ollama API."""
         try:
