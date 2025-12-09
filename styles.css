@@ -1746,3 +1746,163 @@ body {
     font-size: 0.7rem;
     color: var(--text-muted);
 }
+
+/* ===== Mobile Responsive ===== */
+
+/* Title truncation to prevent overflow */
+.header-title {
+    min-width: 0;
+    flex: 1;
+}
+
+.header-title h1 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.model-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+/* Mobile styles (phones) */
+@media (max-width: 600px) {
+    :root {
+        --header-height: 56px;
+    }
+
+    .app-header {
+        padding: 0 12px;
+    }
+
+    .header-title h1 {
+        font-size: 1rem;
+        max-width: 120px;
+    }
+
+    .model-name {
+        font-size: 0.7rem;
+        max-width: 100px;
+    }
+
+    .header-actions {
+        gap: 4px;
+    }
+
+    .icon-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .icon-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    /* Input area */
+    .input-container {
+        padding: 8px;
+    }
+
+    .input-wrapper {
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .attach-btn,
+    .search-btn,
+    .mic-btn {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+
+    .attach-btn svg,
+    .search-btn svg,
+    .mic-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .send-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    #messageInput {
+        font-size: 16px;
+        /* Prevents zoom on iOS */
+        min-height: 40px;
+    }
+
+    /* Messages */
+    .message {
+        padding: 12px;
+        max-width: 90%;
+    }
+
+    .message-content {
+        font-size: 0.95rem;
+    }
+
+    /* Document context */
+    .document-context {
+        padding: 8px 12px;
+    }
+
+    .document-chip {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+
+    .document-chip-name {
+        max-width: 100px;
+    }
+
+    /* Modals */
+    .modal {
+        width: 95%;
+        max-height: 85vh;
+        margin: 8px;
+    }
+
+    .modal-header h2 {
+        font-size: 1.1rem;
+    }
+
+    /* Sidebar */
+    .sidebar {
+        width: 85vw;
+        max-width: 300px;
+    }
+
+    /* Chat items in sidebar */
+    .chat-item {
+        padding: 10px 12px;
+    }
+
+    .chat-item-title {
+        font-size: 0.85rem;
+    }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+    .header-title h1 {
+        max-width: 80px;
+        font-size: 0.9rem;
+    }
+
+    .model-name {
+        display: none;
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+}
