@@ -36,9 +36,9 @@ except ImportError:
 PORT = 8080
 HOST = '0.0.0.0'
 
-# Upstream Ollama URL (Change this if Ollama is on another machine)
-# Example: 'http://192.168.7.149:11434'
-OLLAMA_BASE_URL = 'http://localhost:11434'
+# Upstream Ollama URL - reads from environment variable OLLAMA_BASE_URL
+# Or set it manually: export OLLAMA_BASE_URL='http://192.168.7.149:11434'
+OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434')
 
 # SSL context for HTTPS requests
 ssl_context = ssl.create_default_context()
