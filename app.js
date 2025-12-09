@@ -69,7 +69,9 @@ const state = {
     // Voice State
     isListening: false,
     recognition: null,
-    synth: window.speechSynthesis
+    synth: window.speechSynthesis,
+    // Documents (RAG)
+    documents: []  // Array of {name, text, size}
 };
 
 // ===== DOM Elements =====
@@ -150,7 +152,14 @@ const elements = {
     modelProgress: document.getElementById('modelProgress'),
     progressText: document.getElementById('progressText'),
     progressFill: document.getElementById('progressFill'),
-    modelList: document.getElementById('modelList')
+    modelList: document.getElementById('modelList'),
+
+    // Documents (RAG)
+    docBtn: document.getElementById('docBtn'),
+    docInput: document.getElementById('docInput'),
+    documentContext: document.getElementById('documentContext'),
+    documentList: document.getElementById('documentList'),
+    clearDocuments: document.getElementById('clearDocuments')
 };
 
 // ===== Voice Functions (Defined before init) =====
@@ -704,6 +713,15 @@ function buildApiMessages(searchContext = null) {
     const timeStr = now.toLocaleTimeString('en-US');
 
     let systemContent = `Current date and time: ${dateStr}, ${timeStr}\n\n`;
+
+    // Add document context if any documents are attached
+    if (state.documents.length > 0) {
+        const docContext = state.documents.map(doc =>
+            `=== Document: ${doc.name} ===\n${doc.text}`
+        ).join('\n\n');
+
+        systemContent += `You have access to the following documents. Use them to answer questions accurately.\n\nDOCUMENTS:\n${docContext}\n\n---\n\n`;
+    }
 
     if (searchContext) {
         systemContent += `Use ONLY the following search results to answer. If info is not in the results, say "I don't have that information."
@@ -1262,6 +1280,11 @@ function bindEvents() {
     elements.searchBtn.addEventListener('click', toggleSearch);
     elements.closeSearchPreview.addEventListener('click', hideSearchPreview);
 
+    // Documents (RAG)
+    elements.docBtn.addEventListener('click', () => elements.docInput.click());
+    elements.docInput.addEventListener('change', handleDocumentUpload);
+    elements.clearDocuments.addEventListener('click', clearAllDocuments);
+
     // Voice
     if (elements.micBtn) {
         elements.micBtn.addEventListener('click', toggleVoiceInput);
@@ -1446,6 +1469,100 @@ function escapeHtml(text) {
     if (!text) return '';
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+// ===== Document Handling (RAG) =====
+async function handleDocumentUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = ['.pdf', '.txt', '.md', '.markdown'];
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+    if (!allowedTypes.includes(ext)) {
+        showToast('Unsupported file type. Use PDF, TXT, or MD.', 'error');
+        return;
+    }
+
+    // Show loading
+    showToast('Extracting text from document...', '');
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error('Upload failed');
+        }
+
+        const data = await response.json();
+
+        if (!data.text || data.text.startsWith('[')) {
+            showToast('Could not extract text from document', 'error');
+            return;
+        }
+
+        // Add to documents
+        addDocument(data.filename, data.text);
+        showToast(`Added: ${data.filename}`, 'success');
+
+    } catch (error) {
+        console.error('Document upload error:', error);
+        showToast('Failed to upload document', 'error');
+    }
+
+    // Reset input
+    event.target.value = '';
+}
+
+function addDocument(name, text) {
+    // Limit text size to prevent huge prompts (first 50k chars)
+    const truncatedText = text.length > 50000 ? text.substring(0, 50000) + '\n\n[Document truncated...]' : text;
+
+    state.documents.push({
+        name: name,
+        text: truncatedText,
+        size: text.length
+    });
+
+    renderDocumentList();
+}
+
+function removeDocument(index) {
+    state.documents.splice(index, 1);
+    renderDocumentList();
+}
+
+function clearAllDocuments() {
+    state.documents = [];
+    renderDocumentList();
+}
+
+function renderDocumentList() {
+    if (state.documents.length === 0) {
+        elements.documentContext.classList.remove('active');
+        return;
+    }
+
+    elements.documentContext.classList.add('active');
+
+    elements.documentList.innerHTML = state.documents.map((doc, index) => {
+        const sizeKb = (doc.size / 1024).toFixed(1);
+        return `
+            <div class="document-chip">
+                <span class="document-chip-name" title="${escapeHtml(doc.name)}">📄 ${escapeHtml(doc.name)}</span>
+                <span class="document-chip-size">${sizeKb}KB</span>
+                <button class="document-chip-remove" onclick="removeDocument(${index})" title="Remove">×</button>
+            </div>
+        `;
+    }).join('');
+}
+
+window.removeDocument = removeDocument; // Make available for onclick
 
 // ===== Model Manager =====
 async function openModelManager() {

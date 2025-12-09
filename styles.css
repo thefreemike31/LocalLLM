@@ -1663,3 +1663,86 @@ body {
     transition: width 0.3s ease;
     width: 0%;
 }
+
+/* ===== Document Context (RAG) ===== */
+.document-context {
+    display: none;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.document-context.active {
+    display: block;
+}
+
+.document-context-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.document-clear-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.document-clear-btn:hover {
+    background: var(--error);
+    border-color: var(--error);
+    color: white;
+}
+
+.document-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.document-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    color: var(--text-primary);
+}
+
+.document-chip-name {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.document-chip-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    font-size: 1rem;
+    line-height: 1;
+    transition: var(--transition-fast);
+}
+
+.document-chip-remove:hover {
+    color: var(--error);
+}
+
+.document-chip-size {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
