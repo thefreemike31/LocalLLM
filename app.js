@@ -301,6 +301,14 @@ function speakText(text, btnElement) {
 
 // ===== Initialize =====
 async function init() {
+    // UI setup - ALWAYS runs regardless of DB state
+    loadSettings();
+    bindEvents();
+    setupVoiceInput();
+    autoResizeTextarea();
+    fetchModels();
+
+    // Database initialization - may fail on upgrade, but UI should still work
     try {
         await LocalAIDB.init();
         await loadUsers();
@@ -316,15 +324,9 @@ async function init() {
         const user = state.users.find(u => u.id === parseInt(lastUserId)) || state.users[0];
         await switchUser(user.id);
 
-        loadSettings();
-        bindEvents();
-        setupVoiceInput(); // initialize voice after events are bound
-        fetchModels();
-        autoResizeTextarea();
-
     } catch (error) {
         console.error('Init error:', error);
-        showToast('Failed to initialize database', 'error');
+        showToast('Failed to initialize database. Chat history may not save.', 'error');
     }
 }
 
