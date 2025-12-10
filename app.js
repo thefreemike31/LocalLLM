@@ -1412,10 +1412,12 @@ function bindEvents() {
     });
 
     // Mobile actions toggle
-    safeBind(elements.actionsToggle, 'click', () => {
-        elements.actionsMenu.classList.toggle('show');
-        elements.actionsToggle.classList.toggle('active');
-    });
+    if (elements.actionsToggle) {
+        elements.actionsToggle.addEventListener('click', () => {
+            elements.actionsMenu.classList.toggle('show');
+            elements.actionsToggle.classList.toggle('active');
+        });
+    }
 
     // Close actions menu when clicking an action button
     if (elements.actionsMenu) {
