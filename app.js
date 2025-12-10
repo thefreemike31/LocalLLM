@@ -81,7 +81,9 @@ const state = {
         apiEndpoint: '/api/ollama',
         model: '',
         systemPrompt: '',
-        streamingEnabled: true
+        streamingEnabled: true,
+        theme: 'dark',
+        accentColor: '#6366f1'
     },
     // Voice State
     isListening: false,
@@ -600,6 +602,12 @@ function loadSettings() {
     elements.apiEndpoint.value = state.settings.apiEndpoint;
     elements.systemPrompt.value = state.settings.systemPrompt;
     elements.streamingEnabled.checked = state.settings.streamingEnabled;
+
+    // Apply theme
+    applyTheme(state.settings.theme);
+    applyAccentColor(state.settings.accentColor);
+    updateThemeButtons(state.settings.theme);
+    updateAccentButtons(state.settings.accentColor);
 }
 
 function saveSettings() {
@@ -614,6 +622,47 @@ function saveSettings() {
     closeAllModals();
     showToast('Settings saved!', 'success');
     fetchModels();
+}
+
+function applyTheme(theme) {
+    if (theme === 'light') {
+        document.documentElement.classList.add('light-theme');
+    } else {
+        document.documentElement.classList.remove('light-theme');
+    }
+    state.settings.theme = theme;
+    localStorage.setItem('localai-settings', JSON.stringify(state.settings));
+}
+
+function applyAccentColor(color) {
+    document.documentElement.style.setProperty('--accent-primary', color);
+    // Update secondary accent (slightly lighter)
+    document.documentElement.style.setProperty('--accent-secondary', adjustColor(color, 20));
+    // Update accent glow
+    document.documentElement.style.setProperty('--accent-glow', color + '4D'); // 30% opacity
+    state.settings.accentColor = color;
+    localStorage.setItem('localai-settings', JSON.stringify(state.settings));
+}
+
+function adjustColor(hex, amount) {
+    // Simple color lightening
+    const num = parseInt(hex.replace('#', ''), 16);
+    const r = Math.min(255, (num >> 16) + amount);
+    const g = Math.min(255, ((num >> 8) & 0x00FF) + amount);
+    const b = Math.min(255, (num & 0x0000FF) + amount);
+    return '#' + (0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function updateThemeButtons(theme) {
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === theme);
+    });
+}
+
+function updateAccentButtons(color) {
+    document.querySelectorAll('.accent-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.color === color);
+    });
 }
 
 function updateModelDisplay() {
@@ -1417,6 +1466,22 @@ function bindEvents() {
             renderMemoryList();
             showToast('All memories cleared');
         }
+    });
+
+    // Theme toggle
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            applyTheme(btn.dataset.theme);
+            updateThemeButtons(btn.dataset.theme);
+        });
+    });
+
+    // Accent color picker
+    document.querySelectorAll('.accent-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            applyAccentColor(btn.dataset.color);
+            updateAccentButtons(btn.dataset.color);
+        });
     });
 
     // Clear chat
