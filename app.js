@@ -1444,6 +1444,12 @@ function bindEvents() {
     elements.saveSettings.addEventListener('click', saveSettings);
     elements.refreshModels.addEventListener('click', fetchModels);
 
+    // Check for Updates button
+    const checkUpdatesBtn = document.getElementById('checkUpdates');
+    if (checkUpdatesBtn) {
+        checkUpdatesBtn.addEventListener('click', forceUpdateApp);
+    }
+
     // Model Manager
     elements.modelsBtn.addEventListener('click', openModelManager);
     elements.closeModelManager.addEventListener('click', closeAllModals);
@@ -1942,6 +1948,35 @@ function renderMemoryList() {
 }
 
 window.deleteMemory = deleteMemory; // Make available for onclick
+
+// ===== Force Update/Cache Clear =====
+async function forceUpdateApp() {
+    showToast('Clearing cache and checking for updates...', 'info');
+
+    try {
+        // Clear all caches
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map(name => caches.delete(name)));
+        }
+
+        // Unregister all service workers
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map(reg => reg.unregister()));
+        }
+
+        // Force reload from server (bypass cache)
+        showToast('Reloading with fresh files...', 'success');
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 500);
+
+    } catch (error) {
+        console.error('Update error:', error);
+        showToast('Error clearing cache: ' + error.message, 'error');
+    }
+}
 
 // ===== Start App =====
 init();
