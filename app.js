@@ -44,6 +44,23 @@ const TOOLS_SCHEMA = [
                 properties: {}
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "save_memory",
+            description: "Save an important fact about the user to remember for future conversations. Use this when the user shares personal information, preferences, important dates, or anything they'd want you to remember across chats.",
+            parameters: {
+                type: "object",
+                properties: {
+                    content: {
+                        type: "string",
+                        description: "The fact or information to remember, e.g., 'User's favorite color is blue' or 'User has a dog named Max'"
+                    }
+                },
+                required: ["content"]
+            }
+        }
     }
 ];
 
@@ -71,7 +88,9 @@ const state = {
     recognition: null,
     synth: window.speechSynthesis,
     // Documents (RAG)
-    documents: []  // Array of {name, text, size}
+    documents: [],  // Array of {name, text, size}
+    // Memories (cross-chat)
+    memories: []  // Array of {id, userId, content, category, createdAt}
 };
 
 // ===== DOM Elements =====
@@ -163,7 +182,17 @@ const elements = {
 
     // Mobile actions menu
     actionsToggle: document.getElementById('actionsToggle'),
-    actionsMenu: document.getElementById('actionsMenu')
+    actionsMenu: document.getElementById('actionsMenu'),
+
+    // Memory
+    memoryBtn: document.getElementById('memoryBtn'),
+    memoryModal: document.getElementById('memoryModal'),
+    closeMemory: document.getElementById('closeMemory'),
+    memoryInput: document.getElementById('memoryInput'),
+    addMemoryBtn: document.getElementById('addMemoryBtn'),
+    memoryCount: document.getElementById('memoryCount'),
+    memoryList: document.getElementById('memoryList'),
+    clearAllMemories: document.getElementById('clearAllMemories')
 };
 
 // ===== Voice Functions (Defined before init) =====
@@ -332,6 +361,7 @@ async function switchUser(userId) {
 async function loadUserData() {
     state.folders = await LocalAIDB.Folders.getByUser(state.currentUser.id);
     state.chats = await LocalAIDB.Chats.getByUser(state.currentUser.id);
+    state.memories = await LocalAIDB.Memories.getByUser(state.currentUser.id);
     renderSidebar();
 }
 
@@ -718,6 +748,12 @@ function buildApiMessages(searchContext = null) {
 
     let systemContent = `Current date and time: ${dateStr}, ${timeStr}\n\n`;
 
+    // Add user memories if any exist
+    if (state.memories.length > 0) {
+        const memoryList = state.memories.map(m => `- ${m.content}`).join('\n');
+        systemContent += `THINGS YOU REMEMBER ABOUT THIS USER:\n${memoryList}\n\n`;
+    }
+
     // Add document context if any documents are attached
     if (state.documents.length > 0) {
         const docContext = state.documents.map(doc =>
@@ -969,6 +1005,23 @@ async function executeTool(toolCall) {
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             };
 
+        case "save_memory":
+            try {
+                if (!state.currentUser) {
+                    return { error: "No user logged in" };
+                }
+                const memory = await LocalAIDB.Memories.create(
+                    state.currentUser.id,
+                    args.content,
+                    'fact'
+                );
+                state.memories.push(memory);
+                showToast('💾 Memory saved!', 'success');
+                return { success: true, message: `Saved memory: "${args.content}"` };
+            } catch (e) {
+                return { error: "Failed to save memory: " + e.message };
+            }
+
         default:
             return { error: "Unknown tool: " + name };
     }
@@ -978,7 +1031,8 @@ function showToolUsage(toolName) {
     const icons = {
         web_search: '🔍',
         calculator: '🧮',
-        get_datetime: '📅'
+        get_datetime: '📅',
+        save_memory: '💾'
     };
     showToast(`${icons[toolName] || '🔧'} Using ${toolName}...`);
 }
@@ -1345,6 +1399,22 @@ function bindEvents() {
     elements.downloadModelBtn.addEventListener('click', pullModel);
     elements.modelNameInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') pullModel();
+    });
+
+    // Memory Manager
+    elements.memoryBtn.addEventListener('click', openMemoryModal);
+    elements.closeMemory.addEventListener('click', closeAllModals);
+    elements.addMemoryBtn.addEventListener('click', addMemoryManual);
+    elements.memoryInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addMemoryManual();
+    });
+    elements.clearAllMemories.addEventListener('click', async () => {
+        if (confirm('Delete all memories? This cannot be undone.')) {
+            await LocalAIDB.Memories.deleteByUser(state.currentUser.id);
+            state.memories = [];
+            renderMemoryList();
+            showToast('All memories cleared');
+        }
     });
 
     // Clear chat
@@ -1740,7 +1810,72 @@ async function deleteModel(modelName) {
 
 window.deleteModel = deleteModel; // Make available for onclick
 
-// ===== Start App =====
+// ===== Memory Manager =====
+function openMemoryModal() {
+    openModal(elements.memoryModal);
+    renderMemoryList();
+}
+
+async function addMemoryManual() {
+    const content = elements.memoryInput.value.trim();
+    if (!content) return;
+
+    try {
+        const memory = await LocalAIDB.Memories.create(
+            state.currentUser.id,
+            content,
+            'fact'
+        );
+        state.memories.push(memory);
+        elements.memoryInput.value = '';
+        renderMemoryList();
+        showToast('Memory saved!', 'success');
+    } catch (error) {
+        console.error('Error saving memory:', error);
+        showToast('Failed to save memory', 'error');
+    }
+}
+
+async function deleteMemory(memoryId) {
+    try {
+        await LocalAIDB.Memories.delete(memoryId);
+        state.memories = state.memories.filter(m => m.id !== memoryId);
+        renderMemoryList();
+        showToast('Memory deleted');
+    } catch (error) {
+        console.error('Error deleting memory:', error);
+        showToast('Failed to delete memory', 'error');
+    }
+}
+
+function renderMemoryList() {
+    elements.memoryCount.textContent = state.memories.length;
+
+    if (state.memories.length === 0) {
+        elements.memoryList.innerHTML = `
+            <div class="memory-list-empty">
+                No memories saved yet. Start chatting and the AI will remember important things!
+            </div>
+        `;
+        return;
+    }
+
+    elements.memoryList.innerHTML = state.memories.map(memory => {
+        const date = new Date(memory.createdAt).toLocaleDateString();
+        return `
+            <div class="memory-item" data-memory-id="${memory.id}">
+                <div class="memory-content">${escapeHtml(memory.content)}</div>
+                <div class="memory-actions">
+                    <span class="memory-date">${date}</span>
+                    <button class="memory-delete" onclick="deleteMemory(${memory.id})" title="Delete">×</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.deleteMemory = deleteMemory; // Make available for onclick
+
 // ===== Start App =====
 init();
 

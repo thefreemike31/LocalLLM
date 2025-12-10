@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'LocalAIChat';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let db = null;
 
@@ -41,6 +41,13 @@ function initDB() {
                 const foldersStore = database.createObjectStore('folders', { keyPath: 'id', autoIncrement: true });
                 foldersStore.createIndex('userId', 'userId', { unique: false });
                 foldersStore.createIndex('order', 'order', { unique: false });
+            }
+
+            // Memories store (v2)
+            if (!database.objectStoreNames.contains('memories')) {
+                const memoriesStore = database.createObjectStore('memories', { keyPath: 'id', autoIncrement: true });
+                memoriesStore.createIndex('userId', 'userId', { unique: false });
+                memoriesStore.createIndex('category', 'category', { unique: false });
             }
         };
     });
@@ -249,10 +256,57 @@ const Folders = {
     }
 };
 
+// ===== Memories Operations =====
+const Memories = {
+    MAX_MEMORIES: 50, // Limit to prevent system prompt from getting too large
+
+    async create(userId, content, category = 'fact') {
+        // Check if at limit
+        const existing = await this.getByUser(userId);
+        if (existing.length >= this.MAX_MEMORIES) {
+            // Remove oldest memory
+            const oldest = existing.sort((a, b) =>
+                new Date(a.createdAt) - new Date(b.createdAt)
+            )[0];
+            await this.delete(oldest.id);
+        }
+
+        const memory = {
+            userId,
+            content,
+            category,
+            createdAt: new Date().toISOString()
+        };
+        const id = await dbAdd('memories', memory);
+        return { ...memory, id };
+    },
+
+    async getByUser(userId) {
+        const memories = await dbGetByIndex('memories', 'userId', userId);
+        return memories.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    },
+
+    async update(memory) {
+        return dbPut('memories', memory);
+    },
+
+    async delete(id) {
+        return dbDelete('memories', id);
+    },
+
+    async deleteByUser(userId) {
+        const memories = await this.getByUser(userId);
+        for (const memory of memories) {
+            await this.delete(memory.id);
+        }
+    }
+};
+
 // Export for use
 window.LocalAIDB = {
     init: initDB,
     Users,
     Chats,
-    Folders
+    Folders,
+    Memories
 };
