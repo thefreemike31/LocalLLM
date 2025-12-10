@@ -159,7 +159,11 @@ const elements = {
     docInput: document.getElementById('docInput'),
     documentContext: document.getElementById('documentContext'),
     documentList: document.getElementById('documentList'),
-    clearDocuments: document.getElementById('clearDocuments')
+    clearDocuments: document.getElementById('clearDocuments'),
+
+    // Mobile actions menu
+    actionsToggle: document.getElementById('actionsToggle'),
+    actionsMenu: document.getElementById('actionsMenu')
 };
 
 // ===== Voice Functions (Defined before init) =====
@@ -1399,6 +1403,40 @@ function bindEvents() {
             closeAllModals();
             hideContextMenu();
             closeSidebar();
+            // Also close mobile actions menu
+            if (elements.actionsMenu) {
+                elements.actionsMenu.classList.remove('show');
+                elements.actionsToggle?.classList.remove('active');
+            }
+        }
+    });
+
+    // Mobile actions toggle
+    safeBind(elements.actionsToggle, 'click', () => {
+        elements.actionsMenu.classList.toggle('show');
+        elements.actionsToggle.classList.toggle('active');
+    });
+
+    // Close actions menu when clicking an action button
+    if (elements.actionsMenu) {
+        elements.actionsMenu.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Small delay to let the action trigger first
+                setTimeout(() => {
+                    elements.actionsMenu.classList.remove('show');
+                    elements.actionsToggle?.classList.remove('active');
+                }, 100);
+            });
+        });
+    }
+
+    // Close actions menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (elements.actionsMenu?.classList.contains('show')) {
+            if (!e.target.closest('.actions-menu') && !e.target.closest('.actions-toggle')) {
+                elements.actionsMenu.classList.remove('show');
+                elements.actionsToggle?.classList.remove('active');
+            }
         }
     });
 }

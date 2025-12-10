@@ -1747,6 +1747,18 @@ body {
     color: var(--text-muted);
 }
 
+/* ===== Collapsible Actions Menu ===== */
+
+/* Desktop: Hide toggle button, show actions inline */
+.actions-toggle {
+    display: none;
+}
+
+.actions-menu {
+    display: flex;
+    gap: 4px;
+}
+
 /* ===== Mobile Responsive ===== */
 
 /* Title truncation to prevent overflow */
@@ -1826,6 +1838,56 @@ body {
     .mic-btn svg {
         width: 18px;
         height: 18px;
+    }
+
+    /* Mobile: Collapsible actions menu */
+    .actions-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: var(--surface-2);
+        color: var(--text);
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .actions-toggle:hover {
+        background: var(--primary);
+        color: white;
+    }
+
+    .actions-toggle.active {
+        background: var(--primary);
+        color: white;
+        transform: rotate(45deg);
+    }
+
+    .actions-menu {
+        display: none;
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        background: var(--surface-2);
+        border-radius: 12px;
+        padding: 8px;
+        gap: 4px;
+        flex-direction: row;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+        margin-bottom: 8px;
+        z-index: 100;
+    }
+
+    .actions-menu.show {
+        display: flex;
+    }
+
+    .input-wrapper {
+        position: relative;
     }
 
     .send-btn {
